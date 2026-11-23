@@ -1,0 +1,381 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Slot-räknare</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700;800&display=swap">
+<style>
+/* Layout: smal blå topplist med nollställ, sedan tre block i en kompakt kolumn:
+   IDAG, IMORGON TILL 10:45 (samma uppbyggnad) och TOTALT som summerar båda. */
+:root {
+  --bg: #F2F2F0;
+  --surface: #FFFFFF;
+  --surface2: #E9EBEC;
+  --fg: #111111;
+  --muted: #4F5559;
+  --line: #CFD3D6;
+  --brand: #0058A3;
+  --brand-ink: #FFFFFF;
+  --accent: #FFDB00;
+  --accent-ink: #111111;
+  --focus: #0058A3;
+  --good: #0B7A3B;
+  --good-bg: #E1F4E8;
+  --bad: #C4003C;
+  --bad-bg: #FCE6EC;
+  --font: 'Noto Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F1318; --surface: #1A2028; --surface2: #262D36; --fg: #F1F3F4; --muted: #AAB2B9;
+    --line: #38414B; --focus: #FFDB00;
+    --good: #4FD08A; --good-bg: #12301F; --bad: #FF7A9C; --bad-bg: #3A1520;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0F1318; --surface: #1A2028; --surface2: #262D36; --fg: #F1F3F4; --muted: #AAB2B9;
+  --line: #38414B; --focus: #FFDB00;
+  --good: #4FD08A; --good-bg: #12301F; --bad: #FF7A9C; --bad-bg: #3A1520;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 0;
+  -webkit-text-size-adjust: 100%;
+}
+.wrap {
+  width: 100%;
+  max-width: 560px;
+  margin-inline: auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.top {
+  background: var(--brand);
+  color: var(--brand-ink);
+  margin-top: calc(-1 * env(safe-area-inset-top, 0px));
+  padding-top: calc(env(safe-area-inset-top, 0px) + 10px);
+  padding-bottom: 10px;
+  border-bottom: 5px solid var(--accent);
+}
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.top h1 { font-size: 1.5rem; font-weight: 800; margin: 0; line-height: 1.1; }
+.reset {
+  height: 2.75rem; padding: 0 16px; border: 0; border-radius: 6px;
+  background: var(--accent); color: var(--accent-ink);
+  font: 700 1rem/1 var(--font); cursor: pointer;
+}
+.reset:focus-visible { outline: 3px solid #FFFFFF; outline-offset: 2px; }
+
+main { display: flex; flex-direction: column; gap: 28px; padding-block: 14px 28px; }
+.day { display: flex; flex-direction: column; gap: 12px; }
+
+.sec {
+  margin: 0; padding: 9px 12px; border-radius: 6px;
+  background: var(--accent); color: var(--accent-ink);
+  font-size: 1.05rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+}
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+
+/* Inmatning */
+.fields { display: flex; flex-direction: column; gap: 10px; }
+.field { display: grid; grid-template-columns: 6.2rem minmax(0, 1fr) 3.6rem; align-items: center; gap: 10px; }
+.field.two { grid-template-columns: 6.2rem minmax(0, 1fr); }
+.field label { font-weight: 700; font-size: .95rem; line-height: 1.2; }
+.eq { text-align: right; color: var(--muted); font-weight: 700; font-size: 1.2rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+input[type="text"] {
+  width: 100%;
+  min-width: 0;
+  height: 3.5rem;
+  padding: 0 12px;
+  font: 700 1.75rem/1 var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  background: var(--bg);
+  border: 2px solid var(--line);
+  border-radius: 6px;
+}
+input[type="text"]::placeholder { color: var(--muted); opacity: .5; }
+input[type="text"]:focus { outline: 3px solid var(--focus); outline-offset: 1px; border-color: var(--focus); }
+
+/* Kapacitet */
+.cap-label { font-weight: 700; font-size: .95rem; margin: 0 0 8px; }
+.chips { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; }
+.chip {
+  height: 2.75rem; padding: 0; border-radius: 6px; border: 2px solid var(--line);
+  background: var(--surface2); color: var(--fg);
+  font: 700 1rem/1 var(--font); font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.chip[aria-checked="true"] { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.chip:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* Sifferpanel */
+.panel {
+  background: var(--brand); color: var(--brand-ink); border-radius: 8px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 12px;
+}
+.panel > div { min-width: 0; }
+.panel .k { font-size: .85rem; font-weight: 700; opacity: .9; }
+.panel .big { font-size: 2.2rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.panel .big small { font-size: .95rem; font-weight: 500; margin-left: 4px; }
+.panel .sub { font-size: .95rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+.panel.stack { display: flex; flex-direction: column; gap: 14px; }
+.panel .g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.panel .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, .35); }
+.panel .g3 > div, .panel .g2 > div { min-width: 0; }
+.panel .g3 .big { font-size: 1.8rem; }
+
+/* Resultat plus/minus */
+.res {
+  --c: var(--fg); --cb: var(--surface2);
+  background: var(--cb); border: 3px solid var(--c); color: var(--c);
+  border-radius: 8px; padding: 10px 14px; min-width: 0;
+}
+.card .res { margin-top: 12px; }
+.res[data-state="neg"] { --c: var(--bad); --cb: var(--bad-bg); }
+.res[data-state="pos"] { --c: var(--good); --cb: var(--good-bg); }
+.res .state { font-size: .8rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.res .big { font-size: 3.4rem; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.res .big small { font-size: 1.15rem; font-weight: 700; margin-left: 8px; }
+.res .sub { font-size: 1rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 380px) {
+  .res .big { font-size: 2.9rem; }
+  .panel .big { font-size: 1.9rem; }
+  .panel .g3 .big { font-size: 1.55rem; }
+  .chip { font-size: .9rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .res, .chip { transition: background-color .15s, border-color .15s, color .15s; }
+}
+</style>
+
+<header class="top">
+  <div class="wrap bar">
+    <h1>Slot-räknare</h1>
+    <button class="reset" id="reset" type="button">Nollställ</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="day" id="sec-d"></div>
+  <div class="day" id="sec-t"></div>
+
+  <div class="day" id="sec-total">
+    <h2 class="sec">Totalt</h2>
+    <section class="panel stack" aria-label="Totalt idag och imorgon">
+      <div class="g3">
+        <div><div class="k">Order Lines</div><div class="big" id="tot-lines">0</div></div>
+        <div><div class="k">CNC slots</div><div class="big" id="tot-cnc">0</div></div>
+        <div><div class="k">TSP slots</div><div class="big" id="tot-tsp">0</div></div>
+      </div>
+      <div class="g2">
+        <div>
+          <div class="k">Behövda timmar</div>
+          <div class="big"><span id="tot-need">0</span><small>tim</small></div>
+          <div class="sub" id="tot-needHms">0 min</div>
+        </div>
+        <div>
+          <div class="k">Tillgängliga timmar</div>
+          <div class="big"><span id="tot-avail">0</span><small>tim</small></div>
+          <div class="sub" id="tot-availHms">0 min</div>
+        </div>
+      </div>
+    </section>
+    <div class="res" id="tot-res" data-state="zero" aria-live="polite">
+      <div class="state" id="tot-resState">I balans</div>
+      <div class="big"><span id="tot-resBig">0</span><small>tim</small></div>
+      <div class="sub" id="tot-resSub">0 min</div>
+    </div>
+  </div>
+</main>
+
+<script>
+/*CALC*/
+const CNC_RATE = 6;
+const TSP_RATE = 9;
+
+function toNum(v) {
+  const n = parseFloat(String(v).replace(/\s/g, '').replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function calc(i) {
+  const cncLines = i.cnc * CNC_RATE;
+  const tspLines = i.tsp * TSP_RATE;
+  const total = cncLines + tspLines + i.manual;
+  const neededSec = Math.round(total * 3600 / i.cap);
+  const availSec = Math.round(i.avail * 3600);
+  return { cncLines, tspLines, total, neededSec, availSec, diffSec: availSec - neededSec };
+}
+
+function combine(items) {
+  const t = { lines: 0, cnc: 0, tsp: 0, neededSec: 0, availSec: 0, diffSec: 0 };
+  items.forEach((x) => {
+    t.lines += x.r.total;
+    t.cnc += x.inp.cnc;
+    t.tsp += x.inp.tsp;
+    t.neededSec += x.r.neededSec;
+    t.availSec += x.r.availSec;
+  });
+  t.diffSec = t.availSec - t.neededSec;
+  return t;
+}
+
+function hms(totalSec) {
+  const s = Math.abs(Math.round(totalSec));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const parts = [];
+  if (h) parts.push(h + ' tim');
+  if (m) parts.push(m + ' min');
+  if (sec) parts.push(sec + ' s');
+  return parts.length ? parts.join(' ') : '0 min';
+}
+/*END*/
+
+const $ = (id) => document.getElementById(id);
+const nf = (n, d) => new Intl.NumberFormat('sv-SE', { maximumFractionDigits: d == null ? 2 : d }).format(n);
+
+const SECTIONS = [
+  { p: 'd', title: 'Idag' },
+  { p: 't', title: 'Imorgon till 10:45' }
+];
+const caps = { d: 20, t: 20 };
+
+SECTIONS.forEach(({ p }) => {
+  try {
+    const saved = parseInt(localStorage.getItem('slotraknare-cap-' + p) || localStorage.getItem('slotraknare-cap'), 10);
+    if (saved >= 15 && saved <= 30) caps[p] = saved;
+  } catch (e) {}
+});
+
+function fieldHTML(p, key, label, withOut) {
+  return '<div class="field' + (withOut ? '' : ' two') + '">' +
+    '<label for="' + p + '-' + key + '">' + label + '</label>' +
+    '<input id="' + p + '-' + key + '" type="text" inputmode="' + (key === 'avail' ? 'decimal' : 'numeric') + '" autocomplete="off" placeholder="0">' +
+    (withOut ? '<div class="eq">= <span id="' + p + '-' + key + 'Out">0</span></div>' : '') +
+    '</div>';
+}
+
+function sectionHTML(p, title) {
+  return '<h2 class="sec">' + title + '</h2>' +
+    '<section class="card fields">' +
+      fieldHTML(p, 'man', 'Order Lines', true) +
+      fieldHTML(p, 'cnc', 'Öppna CNC slots', true) +
+      fieldHTML(p, 'tsp', 'Öppna TSP slots', true) +
+    '</section>' +
+    '<section class="card">' +
+      '<p class="cap-label">Order Lines per timme</p>' +
+      '<div class="chips" id="' + p + '-chips" role="radiogroup" aria-label="Order Lines per timme, ' + title.toLowerCase() + '"></div>' +
+    '</section>' +
+    '<section class="panel" aria-label="Totalt och behövd tid, ' + title.toLowerCase() + '">' +
+      '<div><div class="k">Order Lines</div><div class="big" id="' + p + '-lines">0</div></div>' +
+      '<div><div class="k">Behövd tid</div><div class="big"><span id="' + p + '-hours">0</span><small>tim</small></div>' +
+        '<div class="sub" id="' + p + '-hms">0 min</div></div>' +
+    '</section>' +
+    '<section class="card">' +
+      fieldHTML(p, 'avail', 'Tillgängliga timmar', false) +
+      '<div class="res" id="' + p + '-res" data-state="zero" aria-live="polite">' +
+        '<div class="state" id="' + p + '-resState">I balans</div>' +
+        '<div class="big"><span id="' + p + '-resBig">0</span><small>tim</small></div>' +
+        '<div class="sub" id="' + p + '-resSub">0 min</div>' +
+      '</div>' +
+    '</section>';
+}
+
+SECTIONS.forEach(({ p, title }) => {
+  $('sec-' + p).innerHTML = sectionHTML(p, title);
+  const chipsEl = $(p + '-chips');
+  for (let c = 15; c <= 30; c++) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.textContent = c;
+    b.dataset.cap = c;
+    b.setAttribute('role', 'radio');
+    b.addEventListener('click', () => setCap(p, c));
+    chipsEl.appendChild(b);
+  }
+  ['man', 'cnc', 'tsp', 'avail'].forEach((key) => {
+    const el = $(p + '-' + key);
+    el.addEventListener('input', update);
+    el.addEventListener('focus', () => setTimeout(() => el.select(), 0));
+  });
+});
+
+function setCap(p, c) {
+  caps[p] = c;
+  try { localStorage.setItem('slotraknare-cap-' + p, String(c)); } catch (e) {}
+  update();
+}
+
+function renderRes(p, diffSec) {
+  const state = diffSec < 0 ? 'neg' : diffSec > 0 ? 'pos' : 'zero';
+  const sign = diffSec > 0 ? '+' : diffSec < 0 ? '−' : '';
+  $(p + '-res').dataset.state = state;
+  $(p + '-resState').textContent = { neg: 'Timmar saknas', pos: 'Timmar över', zero: 'I balans' }[state];
+  $(p + '-resBig').textContent = sign + nf(Math.abs(diffSec) / 3600, 2);
+  $(p + '-resSub').textContent = diffSec === 0 ? '0 min' : sign + hms(diffSec);
+}
+
+function update() {
+  const items = SECTIONS.map(({ p }) => {
+    const inp = {
+      cnc: toNum($(p + '-cnc').value),
+      tsp: toNum($(p + '-tsp').value),
+      manual: toNum($(p + '-man').value),
+      cap: caps[p],
+      avail: toNum($(p + '-avail').value)
+    };
+    const r = calc(inp);
+
+    document.querySelectorAll('#' + p + '-chips .chip').forEach((b) =>
+      b.setAttribute('aria-checked', String(Number(b.dataset.cap) === caps[p])));
+
+    $(p + '-cncOut').textContent = nf(r.cncLines);
+    $(p + '-tspOut').textContent = nf(r.tspLines);
+    $(p + '-manOut').textContent = nf(inp.manual);
+    $(p + '-lines').textContent = nf(r.total);
+    $(p + '-hours').textContent = nf(r.neededSec / 3600, 2);
+    $(p + '-hms').textContent = hms(r.neededSec);
+    renderRes(p, r.diffSec);
+    return { inp, r };
+  });
+
+  const t = combine(items);
+  $('tot-lines').textContent = nf(t.lines);
+  $('tot-cnc').textContent = nf(t.cnc);
+  $('tot-tsp').textContent = nf(t.tsp);
+  $('tot-need').textContent = nf(t.neededSec / 3600, 2);
+  $('tot-needHms').textContent = hms(t.neededSec);
+  $('tot-avail').textContent = nf(t.availSec / 3600, 2);
+  $('tot-availHms').textContent = hms(t.availSec);
+  renderRes('tot', t.diffSec);
+}
+
+$('reset').addEventListener('click', () => {
+  SECTIONS.forEach(({ p }) => {
+    ['man', 'cnc', 'tsp', 'avail'].forEach((key) => { $(p + '-' + key).value = ''; });
+    caps[p] = 20;
+    try { localStorage.setItem('slotraknare-cap-' + p, '20'); } catch (e) {}
+  });
+  update();
+  window.scrollTo({ top: 0 });
+  $('d-man').focus();
+});
+
+update();
+</script>
+
+</body></html>
